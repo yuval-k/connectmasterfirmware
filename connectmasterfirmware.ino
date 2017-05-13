@@ -6,7 +6,7 @@
 #define NUM_POLES 20
 #define TIMEOUT 1000
 
-#define SEND_DATA_PERIOD 200
+#define SEND_DATA_PERIOD 1000
 
 const byte CONNECT_READ_STATE = 0xBE;
 
@@ -15,7 +15,7 @@ unsigned long poles_deadline[NUM_POLES];
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   Wire.setClock(100000);
   Wire.begin();
@@ -56,11 +56,11 @@ void loop() {
 
 void send_data() {
   for (int i = 0; i < NUM_POLES; i++){
-    Serial.print('0' + i);
+    Serial.print(i);
     for (int j = 0; j < NUM_POLES; j++){
-      Serial.print(": ");
       if (pole_data[i][j]) {
-        Serial.print('0' + j);
+        Serial.print(":");
+        Serial.print(j);
       }
     }
     Serial.println();
@@ -74,8 +74,14 @@ void update_data(int poleIndex) {
 
 
   Wire.requestFrom(0x10+poleIndex, COUNT_OF(data));   // request 6 bytes from slave device #8
-  for(int i = 0; (Wire.available()) && (i < COUNT_OF(data)); i++){
+  int i;
+  for(i = 0; (Wire.available()) && (i < COUNT_OF(data)); i++){
     data[i++] = Wire.read(); // receive a byte as character
+  }
+
+  if (i <  COUNT_OF(data)) {
+    // we didn't receive all the data - no point of going forward...
+    return;
   }
 
 
