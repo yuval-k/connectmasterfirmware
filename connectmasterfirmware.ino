@@ -1,14 +1,14 @@
 #include <OneWire.h>
 
 #define NUM_POLES 20
-#define TIMEOUT 200
 
 const byte CONNECT_READ_STATE = 0xBE;
 
-#define SEND_DATA_PERIOD 500
+#define SEND_DATA_PERIOD 100
+#define READ_POLE_PERIOD (100 / NUM_POLES)
 
 bool pole_data[NUM_POLES][NUM_POLES];
-unsigned long poles_deadline[NUM_POLES];
+unsigned long poles_updated[NUM_POLES];
 
 OneWire bus(8);  // on pin 10
 
@@ -20,40 +20,40 @@ void setup() {
 void loop() {
   static int index = 0;
   static unsigned long datasent_deadline = 0;
-
-  index %= NUM_POLES;
+  static unsigned long readpole_deadline = 0;
 
   unsigned long now = millis();
   // TODO dad last update time
 
   // each update data reads a pole
-  update_data(index);
+  if (now > readpole_deadline) {
+    readpole_deadline = now + READ_POLE_PERIOD;
+    update_data(index);
+    ++index;
+    index %= NUM_POLES;
+  }
 
   if (now > datasent_deadline) {
     datasent_deadline = now + SEND_DATA_PERIOD;
     send_data();
   }
 
-  // update local state,
-  for (int i = 0; i < NUM_POLES; i++){
-    if ( now > poles_deadline[i]){
-      for (int j = 0; j < NUM_POLES; j++){
-        pole_data[i][j] = false;
-      }
-    }
-  }
 
-  ++index;
 }
 
 void send_data() {
+  unsigned long now = millis();
   for (int i = 0; i < NUM_POLES; i++){
+    
+    Serial.print(now - poles_updated[i]);
+    Serial.print(":");
     Serial.print(i);
     for (int j = 0; j < NUM_POLES; j++){
       if (pole_data[i][j]) {
       Serial.print(":");
         Serial.print(j);
-      }
+    }
+      
     }
     Serial.println();
   }
@@ -61,6 +61,8 @@ void send_data() {
 
 void update_data(int poleIndex) {
   // put your main code here, to run repeatedly:
+//    Serial.print("# update_data!");
+//    Serial.println(poleIndex);
 
   byte data[9];
   byte addr[8] = {0x33, poleIndex,0,0,0,0,0};
@@ -70,18 +72,20 @@ void update_data(int poleIndex) {
   bus.reset();
   bus.select(addr);
   bus.write(CONNECT_READ_STATE);
-  
+//    Serial.print("#");
+
   for (int i = 0; i < 9; i++) {
     data[i] = bus.read();
 //    Serial.print(data[i], HEX);
 //    Serial.print(" ");
   }
+//    Serial.println();
 
   if ( OneWire::crc8(data, 8) != data[8]) {
-//      Serial.print("# CRC is not valid!\n");
+//      Serial.println("# CRC is not valid!");
       return;
   }
-  poles_deadline[poleIndex] = millis() + TIMEOUT;
+  poles_updated[poleIndex] = millis();
 
   // update local state,
   for (int i = 0; i < NUM_POLES; i++) {
