@@ -1,5 +1,7 @@
 #include <OneWire.h>
 
+#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
 #define NUM_POLES 20
 
 const byte CONNECT_READ_STATE = 0xBE;
@@ -64,7 +66,7 @@ void update_data(int poleIndex) {
 //    Serial.print("# update_data!");
 //    Serial.println(poleIndex);
 
-  byte data[9];
+  byte data[4];
   byte addr[8] = {0x33, poleIndex,0,0,0,0,0};
  
   addr[7] = OneWire::crc8(addr, 7);
@@ -74,14 +76,14 @@ void update_data(int poleIndex) {
   bus.write(CONNECT_READ_STATE);
 //    Serial.print("#");
 
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < COUNT_OF(data); i++) {
     data[i] = bus.read();
 //    Serial.print(data[i], HEX);
 //    Serial.print(" ");
   }
 //    Serial.println();
 
-  if ( OneWire::crc8(data, 8) != data[8]) {
+  if ( OneWire::crc8(data, COUNT_OF(data)-1) != data[COUNT_OF(data)-1]) {
 //      Serial.println("# CRC is not valid!");
       return;
   }
